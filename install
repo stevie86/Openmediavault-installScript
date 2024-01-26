@@ -14,6 +14,9 @@
 # https://forum.openmediavault.org/index.php/Thread/25062-Install-OMV5-on-Debian-10-Buster/
 #
 
+#install apt-fast:
+/bin/bash -c "$(curl -sL https://git.io/vokNn)"
+
 logfile="omv_install.log"
 scriptversion="2.3.1"
 
@@ -189,10 +192,10 @@ if [ -f "/usr/libexec/config-rtl8367rb.sh" ]; then
 fi
 
 _log "Updating repos before installing..."
-apt-get --allow-releaseinfo-change update 2>&1 | tee -a ${logfile}
+apt-fast --allow-releaseinfo-change update 2>&1 | tee -a ${logfile}
 
 _log "Installing lsb_release..."
-apt-get --yes --no-install-recommends --reinstall install lsb-release 2>&1 | tee -a ${logfile}
+apt-fast --yes --no-install-recommends --reinstall install lsb-release 2>&1 | tee -a ${logfile}
 
 arch="$(dpkg --print-architecture)"
 _log "Arch :: ${arch}"
@@ -246,7 +249,7 @@ if [[ ! ${hostname} =~ ${regex} ]]; then
     exit 6
 fi
 
-# Add Debian signing keys to raspbian to prevent apt-get update failures
+# Add Debian signing keys to raspbian to prevent apt-fast update failures
 # when OMV adds security and/or backports repos
 if grep -rq raspberrypi.org /etc/apt/*; then
   rpivers="$(awk '$1 == "Revision" { print $3 }' /proc/cpuinfo)"
@@ -262,7 +265,7 @@ if grep -rq raspberrypi.org /etc/apt/*; then
     apt-key adv --no-tty --keyserver ${keyserver} --recv-keys "${key}" 2>&1 | tee -a ${logfile}
   done
   _log "Installing monit from raspberrypi repo..."
-  apt-get --yes --no-install-recommends install -t ${codename} monit 2>&1 | tee -a ${logfile}
+  apt-fast --yes --no-install-recommends install -t ${codename} monit 2>&1 | tee -a ${logfile}
 
   # remove vscode repo if found since there is no desktop environment
   # empty file will exist to keep raspberrypi-sys-mods package from adding it back
@@ -279,7 +282,7 @@ fi
 dpkg -P udisks2 2>&1 | tee -a ${logfile}
 
 _log "Install prerequisites..."
-apt-get --yes --no-install-recommends install gnupg wget 2>&1 | tee -a ${logfile}
+apt-fast --yes --no-install-recommends install gnupg wget 2>&1 | tee -a ${logfile}
 
 if [ ${armbian} -eq 1 ]; then
   systemctl unmask systemd-networkd.service 2>&1 | tee -a ${logfile}
@@ -296,11 +299,11 @@ fi
 omvInstall=$(dpkg -l | awk '$2 == "openmediavault" { print $1 }')
 if [[ ! "${omvInstall}" == "ii" ]]; then
   _log "Installing openmediavault required packages..."
-  apt-get --yes --no-install-recommends install postfix 2>&1 | tee -a ${logfile}
+  apt-fast --yes --no-install-recommends install postfix 2>&1 | tee -a ${logfile}
   if [ $? -gt 0 ]; then
     _log "failed installing postfix"
     sed -i '/^myhostname/d' /etc/postfix/main.cf
-    apt-get --yes --fix-broken install 2>&1 | tee -a ${logfile}
+    apt-fast --yes --fix-broken install 2>&1 | tee -a ${logfile}
     if [ $? -gt 0 ]; then
       _log "failed installing postfix and unable to fix"
       exit 2
@@ -312,14 +315,14 @@ if [[ ! "${omvInstall}" == "ii" ]]; then
   wget --quiet --output-document=- "${omvKeyUrl}" | gpg --dearmor --yes --output "${omvKey}"
 
   _log "Updating repos..."
-  apt-get update 2>&1 | tee -a ${logfile}
+  apt-fast update 2>&1 | tee -a ${logfile}
   if [ $? -gt 0 ]; then
     _log "failed to update apt repos."
     exit 2
   fi
 
   _log "Install openmediavault-keyring..."
-  apt-get --yes install openmediavault-keyring 2>&1 | tee -a ${logfile}
+  apt-fast --yes install openmediavault-keyring 2>&1 | tee -a ${logfile}
   if [ $? -gt 0 ]; then
     _log "failed to install openmediavault-keyring package."
     exit 2
@@ -327,7 +330,7 @@ if [[ ! "${omvInstall}" == "ii" ]]; then
 
   monitInstall=$(dpkg -l | awk '$2 == "monit" { print $1 }')
   if [[ ! "${monitInstall}" == "ii" ]]; then
-    apt-get --yes --no-install-recommends install monit 2>&1 | tee -a ${logfile}
+    apt-fast --yes --no-install-recommends install monit 2>&1 | tee -a ${logfile}
     if [ $? -gt 0 ]; then
       _log "failed installing monit"
       exit 2
@@ -336,7 +339,7 @@ if [[ ! "${omvInstall}" == "ii" ]]; then
 
   _log "Installing openmediavault..."
   aptFlags="--yes --auto-remove --show-upgraded --allow-downgrades --allow-change-held-packages --no-install-recommends"
-  apt-get ${aptFlags} install openmediavault 2>&1 | tee -a ${logfile}
+  apt-fast ${aptFlags} install openmediavault 2>&1 | tee -a ${logfile}
   if [ $? -gt 0 ]; then
     _log "failed to install openmediavault package."
     exit 2
@@ -404,11 +407,11 @@ wget ${url}/${file}
 if [ -f "${file}" ]; then
   if ! dpkg --install ${file}; then
     _log "Installing other dependencies ..."
-    apt-get --yes --fix-broken install 2>&1 | tee -a ${logfile}
+    apt-fast --yes --fix-broken install 2>&1 | tee -a ${logfile}
     omvextrasInstall=$(dpkg -l | awk '$2 == "openmediavault-omvextrasorg" { print $1 }')
     if [[ ! "${omvextrasInstall}" == "ii" ]]; then
       _log "omv-extras failed to install correctly.  Trying to fix apt ..."
-      apt-get --yes --fix-broken install 2>&1 | tee -a ${logfile}
+      apt-fast --yes --fix-broken install 2>&1 | tee -a ${logfile}
       if [ $? -gt 0 ]; then
         _log "Fix failed and openmediavault-omvextrasorg is in a bad state."
         exit 3
@@ -451,20 +454,20 @@ if [ ${skipFlash} -eq 1 ]; then
   _log "Skipping installation of the flashmemory plugin."
 else
   _log "Install folder2ram..."
-  apt-get --yes --fix-missing --no-install-recommends install folder2ram 2>&1 | tee -a ${logfile}
+  apt-fast --yes --fix-missing --no-install-recommends install folder2ram 2>&1 | tee -a ${logfile}
   if [ $? -gt 0 ]; then
     _log "Installed folder2ram."
   else
     _log "Failed to install folder2ram."
   fi
   _log "Install flashmemory plugin..."
-  apt-get --yes install openmediavault-flashmemory 2>&1 | tee -a ${logfile}
+  apt-fast --yes install openmediavault-flashmemory 2>&1 | tee -a ${logfile}
   if [ $? -gt 0 ]; then
     _log "Installed flashmemory plugin."
   else
     _log "Failed to install flashmemory plugin."
     ${confCmd} flashmemory 2>&1 | tee -a ${logfile}
-    apt-get --yes --fix-broken install 2>&1 | tee -a ${logfile}
+    apt-fast --yes --fix-broken install 2>&1 | tee -a ${logfile}
   fi
 fi
 
@@ -648,7 +651,7 @@ if [ ${skipNet} -ne 1 ]; then
   fi
 
   _log "Removing network-manager and dhcpcd5 ..."
-  apt-get -y --autoremove purge network-manager dhcpcd5 2>&1 | tee -a ${logfile}
+  apt-fast -y --autoremove purge network-manager dhcpcd5 2>&1 | tee -a ${logfile}
 
   _log "Enable and start systemd-resolved ..."
   systemctl enable systemd-resolved 2>&1 | tee -a ${logfile}
